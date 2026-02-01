@@ -1,0 +1,217 @@
+# Polymarket Volatility Bot - Configuration
+
+# ==============================================
+# SYSTEM
+# ==============================================
+system:
+  mode: paper  # paper or live
+  log_level: INFO
+  database_path: data/evolution.db
+  
+# ==============================================
+# DATA COLLECTION
+# ==============================================
+collection:
+  # How often to poll prices (seconds)
+  poll_interval: 1  # Near-instant updates
+  
+  # Assets to track
+  assets:
+    - BTC
+    - ETH
+    - SOL
+    - XRP
+  
+  # Market type filter
+  market_type: "15min"  # 15-minute resolution markets
+
+# ==============================================
+# STRATEGIES
+# ==============================================
+strategies:
+  # Tier 1: Ultra-Deep (BEST MATH)
+  - id: ultra_05_10
+    entry: 0.05
+    exit: 0.10
+    tier: 1
+    enabled: true
+    
+  - id: ultra_05_15
+    entry: 0.05
+    exit: 0.15
+    tier: 1
+    enabled: true
+    
+  - id: ultra_05_20
+    entry: 0.05
+    exit: 0.20
+    tier: 1
+    enabled: true
+
+  # Tier 1: Deep Value (RECOMMENDED)
+  - id: deep_10_20
+    entry: 0.10
+    exit: 0.20
+    tier: 1
+    enabled: true
+    
+  - id: deep_10_25
+    entry: 0.10
+    exit: 0.25
+    tier: 1
+    enabled: true
+    
+  - id: deep_15_25
+    entry: 0.15
+    exit: 0.25
+    tier: 1
+    enabled: true
+    
+  - id: deep_15_30
+    entry: 0.15
+    exit: 0.30
+    tier: 1
+    enabled: true
+
+  # Tier 2: Value
+  - id: value_20_25
+    entry: 0.20
+    exit: 0.25
+    tier: 2
+    enabled: true
+    
+  - id: value_20_30
+    entry: 0.20
+    exit: 0.30
+    tier: 2
+    enabled: true
+    
+  - id: value_20_35
+    entry: 0.20
+    exit: 0.35
+    tier: 2
+    enabled: true
+
+  # Tier 3: Mid-Range (disabled - trigger too easily)
+  - id: mid_35_50
+    entry: 0.35
+    exit: 0.50
+    tier: 3
+    enabled: false  # DISABLED - 70% break-even too risky
+    
+  - id: mid_40_50
+    entry: 0.40
+    exit: 0.50
+    tier: 3
+    enabled: false  # DISABLED - 80% break-even too risky
+    
+  - id: mid_40_55
+    entry: 0.40
+    exit: 0.55
+    tier: 3
+    enabled: false  # DISABLED
+
+  # Tier 4: High Probability (disabled - risky math)
+  - id: high_60_70
+    entry: 0.60
+    exit: 0.70
+    tier: 4
+    enabled: false  # DISABLED - 85.7% break-even
+
+  # Tier 5: Fade (contrarian) - THESE ARE GOOD!
+  # When YES is at 80%, buy NO at 20% - same math as deep value
+  - id: fade_80_70
+    entry: 0.80
+    exit: 0.70
+    tier: 5
+    direction: fade
+    enabled: true  # Entry at NO=20%, exit at NO=30% = +50% profit
+    
+  - id: fade_85_75
+    entry: 0.85
+    exit: 0.75
+    tier: 5
+    direction: fade
+    enabled: true  # Entry at NO=15%, exit at NO=25% = +67% profit
+    
+  - id: fade_90_80
+    entry: 0.90
+    exit: 0.80
+    tier: 5
+    direction: fade
+    enabled: true  # Entry at NO=10%, exit at NO=20% = +100% profit
+
+# ==============================================
+# BANKROLL MANAGEMENT
+# ==============================================
+bankroll:
+  # Starting bankroll (for paper trading simulation)
+  initial: 100.0
+  
+  # Position sizing method: fractional_kelly, fixed, or tiered
+  sizing_method: fractional_kelly
+  
+  # Kelly fraction (0.5 = half Kelly, recommended)
+  kelly_fraction: 0.50
+  
+  # Max bet as % of bankroll
+  max_bet_pct: 0.15
+  
+  # Min bet as % of bankroll
+  min_bet_pct: 0.03
+  
+  # Vault settings
+  vault:
+    enabled: true
+    deposit_rate: 0.20  # Save 20% of every profit
+    
+  # Risk limits
+  risk:
+    max_drawdown: 0.25      # Stop if down 25%
+    max_daily_loss: 0.15    # Stop for day if down 15%
+    max_consecutive_losses: 5
+    cooldown_minutes: 15
+
+# ==============================================
+# EXIT RULES
+# ==============================================
+exits:
+  # Take profit when price hits target
+  take_profit: true
+  
+  # Exit before resolution (seconds remaining)
+  resolution_exit_threshold: 60  # Exit if < 1 min left (15-min markets)
+  
+  # Time stop (seconds held without progress)
+  time_stop_threshold: 840  # Exit if held > 14 min with no progress
+
+# ==============================================
+# ANALYSIS
+# ==============================================
+analysis:
+  # How often to run analysis (seconds)
+  interval: 3600  # Every hour
+  
+  # Min trades before considering strategy significant
+  min_trades_significance: 50
+
+# ==============================================
+# LLM EVOLUTION (Optional)
+# ==============================================
+evolution:
+  enabled: false  # Set to true when you add OpenRouter key
+  interval: 21600  # Every 6 hours
+  model: anthropic/claude-3-sonnet
+  
+# ==============================================
+# ALERTS (Optional)
+# ==============================================
+alerts:
+  enabled: false
+  
+  # What to alert on
+  triggers:
+    - strategy_75_wr     # Strategy hits 75%+ win rate
+    - daily_summary      # End of day summary
+    - system_error       # Errors/crashes
+    - low_win_rate       # Win rate drops below 60%
