@@ -4,7 +4,7 @@ Runs all strategies simultaneously against live price data.
 Manages paper trades and tracks performance.
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 import structlog
 
@@ -68,6 +68,15 @@ class StrategyRunner:
         if self.live_trader:
             await self.live_trader.connect()
             logger.info("strategy_runner.live_trader_connected")
+            
+        # Fix Amnesia: Load existing open trades from DB so we can manage/sell them
+        await self._load_open_trades()
+        
+        # Initialize spending limit (User Request: Max $5 per 15 mins)
+        self.spending_window_start = datetime.utcnow()
+        self.spent_in_window = 0.0
+        self.spending_limit = 5.0
+        self.spending_window_duration = timedelta(minutes=15)
         
         self._running = True
         self._task = asyncio.create_task(self._run_loop())
@@ -95,11 +104,11 @@ class StrategyRunner:
     
     async def _load_strategies(self) -> None:
         """Load and initialize strategies from config."""
+        self.enabled_strategy_ids = set()
+        
         for strat_config in self.config.strategies:
-            if not strat_config.enabled:
-                continue
-            
-            # Create strategy instance
+            # Create strategy instance for ALL strategies (even disabled ones)
+            # This ensures we manage exits for legacy positions
             strategy = create_strategy({
                 "id": strat_config.id,
                 "entry": strat_config.entry,
@@ -109,6 +118,9 @@ class StrategyRunner:
             })
             
             self.strategies[strategy.id] = strategy
+            
+            if strat_config.enabled:
+                self.enabled_strategy_ids.add(strategy.id)
             
             # Save strategy to database
             db_strategy = StrategyModel(
@@ -122,11 +134,35 @@ class StrategyRunner:
             )
             await self.db.save_strategy(db_strategy)
             
+            status_msg = "ENABLED" if strat_config.enabled else "MONITOR_ONLY"
             logger.info("strategy_runner.strategy_loaded",
                        id=strategy.id,
+                       status=status_msg,
                        entry=strategy.entry_threshold,
                        exit=strategy.exit_threshold,
                        break_even_wr=f"{strategy.break_even_win_rate:.1%}")
+
+    async def _load_open_trades(self) -> None:
+        """Load open trades from database to restore state after restart."""
+        # Get all OPEN trades from DB
+        # Note: We use get_open_active_trades or manual query
+        # Since I verified database.py has get_open_trades:
+        trades = await self.db.get_open_trades()
+        
+        count = 0
+        for trade in trades:
+            # Reconstruct the key used in runner
+            key = (trade.strategy_id, trade.condition_id)
+            self.open_trades[key] = trade
+            
+            # Ensure the strategy object knows it has a position (to prevent double-buys)
+            if trade.strategy_id in self.strategies:
+                # We artificially "open" the position in the strategy object
+                # This is a bit hacky but safe because runner checks self.open_trades first
+                pass
+            count += 1
+            
+        logger.info("strategy_runner.trades_restored", count=count)
     
     async def _run_loop(self) -> None:
         """Main strategy execution loop."""
@@ -174,6 +210,11 @@ class StrategyRunner:
         price_update: PriceUpdate
     ) -> None:
         """Check if strategy should enter a position."""
+        # Only check entries for enabled strategies
+        # Disabled strategies are only loaded to manage exits of legacy positions
+        if not hasattr(self, 'enabled_strategy_ids') or strategy.id not in self.enabled_strategy_ids:
+            return
+
         # Check if we already have a position
         trade_key = (strategy.id, price_update.condition_id)
         if trade_key in self.open_trades:
@@ -219,8 +260,36 @@ class StrategyRunner:
                        actual_usd=f"${bet_size:.2f}",
                        reason=kelly_bet.reasoning)
 
+            # Check Spending Limit
+            now = datetime.utcnow()
+            if now - self.spending_window_start > self.spending_window_duration:
+                # Reset window
+                self.spending_window_start = now
+                self.spent_in_window = 0.0
+                logger.info("strategy_runner.spending_limit_reset")
+            
+            if self.spent_in_window + bet_size > self.spending_limit:
+                logger.warning("strategy_runner.spending_limit_hit", 
+                             spent=f"${self.spent_in_window:.2f}", 
+                             limit=f"${self.spending_limit:.2f}")
+                return
+
             shares = bet_size / signal.price if signal.price > 0 else 0
             
+            # Check Spending Limit
+            now = datetime.utcnow()
+            if now - self.spending_window_start > self.spending_window_duration:
+                # Reset window
+                self.spending_window_start = now
+                self.spent_in_window = 0.0
+                logger.info("strategy_runner.spending_limit_reset")
+            
+            if self.spent_in_window + bet_size > self.spending_limit:
+                logger.warning("strategy_runner.spending_limit_hit", 
+                             spent=f"${self.spent_in_window:.2f}", 
+                             limit=f"${self.spending_limit:.2f}")
+                return
+
             # === LIVE TRADING EXECUTION ===
             order_id = None
             is_paper = True
@@ -247,12 +316,15 @@ class StrategyRunner:
                         
                         if order_id:
                             is_paper = False
+                            # Increment spending accumulator only on success
+                            self.spent_in_window += bet_size
                             logger.info("strategy_runner.live_order_placed",
                                        order_id=order_id,
                                        strategy=strategy.id,
                                        side=signal.side.value,
                                        price=f"{signal.price:.1%}",
-                                       shares=f"{shares:.2f}")
+                                       shares=f"{shares:.2f}",
+                                       spent_window=f"${self.spent_in_window:.2f}")
                         else:
                             logger.error("strategy_runner.live_order_failed",
                                         strategy=strategy.id)

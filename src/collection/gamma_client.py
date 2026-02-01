@@ -7,6 +7,7 @@ import httpx
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import structlog
+import json
 
 from ..core.models import Market, PriceUpdate
 
@@ -214,6 +215,12 @@ class GammaClient:
             
             # Extract CLOB token IDs for real-time orderbook prices
             clob_token_ids = market_data.get("clobTokenIds", [])
+            if isinstance(clob_token_ids, str):
+                try:
+                    clob_token_ids = json.loads(clob_token_ids)
+                except Exception:
+                    clob_token_ids = []
+            
             yes_token_id = clob_token_ids[0] if len(clob_token_ids) > 0 else None
             no_token_id = clob_token_ids[1] if len(clob_token_ids) > 1 else None
             

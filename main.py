@@ -49,6 +49,7 @@ async def main():
     from src.collection.price_collector import PriceCollector
     from src.strategies.runner import StrategyRunner
     from src.analysis.reporter import Reporter
+    from src.analysis.ai_optimizer import AIStrategyOptimizer
     
     # Load configuration
     config = get_config()
@@ -70,6 +71,11 @@ async def main():
     price_collector = PriceCollector(db)
     strategy_runner = StrategyRunner(db, price_collector)
     reporter = Reporter(db)
+    ai_optimizer = AIStrategyOptimizer(
+        db=db,
+        auto_apply=False,  # Start conservative - just insights, no auto-changes
+        run_interval_hours=1.0
+    )
     
     # Handle shutdown signals
     shutdown_event = asyncio.Event()
@@ -88,12 +94,17 @@ async def main():
         # Start components
         await price_collector.start()
         await strategy_runner.start()
+        await ai_optimizer.start()
         
         logger.info("=" * 60)
         logger.info("BOT IS NOW RUNNING")
         logger.info("=" * 60)
         logger.info("Watching for 15-minute crypto markets...")
         logger.info("Paper trading with 18 strategies...")
+        if ai_optimizer.api_key and ai_optimizer.api_key != 'your_openrouter_api_key_here':
+            logger.info("AI Optimizer: ACTIVE (hourly analysis)")
+        else:
+            logger.info("AI Optimizer: DISABLED (set OPENROUTER_API_KEY to enable)")
         logger.info("Press Ctrl+C to stop")
         logger.info("=" * 60)
         
@@ -154,6 +165,7 @@ async def main():
     finally:
         # Shutdown
         logger.info("shutdown.starting")
+        await ai_optimizer.stop()
         await strategy_runner.stop()
         await price_collector.stop()
         await db.close()

@@ -189,8 +189,11 @@ class BaseStrategy(ABC):
         else:
             exit_target = self.exit_threshold
         
+        # Calculate ROI
+        roi = (current_price - position.entry_price) / position.entry_price
+        
         # 1. TAKE PROFIT - hit target
-        if current_price >= exit_target:
+        if roi >= 1.00:
             return ExitSignal.TAKE_PROFIT, current_price
         
         # 2. RESOLUTION EXIT - too close to resolution

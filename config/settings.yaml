@@ -40,57 +40,57 @@ strategies:
     entry: 0.05
     exit: 0.15
     tier: 1
-    enabled: true
+    enabled: false
     
   - id: ultra_05_20
     entry: 0.05
     exit: 0.20
     tier: 1
-    enabled: true
+    enabled: false
 
   # Tier 1: Deep Value (RECOMMENDED)
   - id: deep_10_20
     entry: 0.10
     exit: 0.20
     tier: 1
-    enabled: true
+    enabled: false
     
   - id: deep_10_25
     entry: 0.10
     exit: 0.25
     tier: 1
-    enabled: true
+    enabled: false
     
   - id: deep_15_25
     entry: 0.15
     exit: 0.25
     tier: 1
-    enabled: true
+    enabled: false
     
   - id: deep_15_30
     entry: 0.15
     exit: 0.30
     tier: 1
-    enabled: true
+    enabled: false
 
   # Tier 2: Value
   - id: value_20_25
     entry: 0.20
     exit: 0.25
     tier: 2
-    enabled: true
+    enabled: false
     
   - id: value_20_30
     entry: 0.20
     exit: 0.30
     tier: 2
-    enabled: true
+    enabled: false
     
   - id: value_20_35
     entry: 0.20
     exit: 0.35
     tier: 2
-    enabled: true
+    enabled: false
 
   # Tier 3: Mid-Range (disabled - trigger too easily)
   - id: mid_35_50
@@ -122,17 +122,17 @@ strategies:
   # When YES is at 80%, buy NO at 20% - same math as deep value
   - id: fade_80_70
     entry: 0.80
-    exit: 0.70
+    exit: 0.60
     tier: 5
     direction: fade
-    enabled: true  # Entry at NO=20%, exit at NO=30% = +50% profit
+    enabled: true  # Entry at NO=20%, exit at NO=40% = +100% profit
     
   - id: fade_85_75
     entry: 0.85
     exit: 0.75
     tier: 5
     direction: fade
-    enabled: true  # Entry at NO=15%, exit at NO=25% = +67% profit
+    enabled: false  # Entry at NO=15%, exit at NO=25% = +67% profit
     
   - id: fade_90_80
     entry: 0.90
@@ -180,7 +180,7 @@ exits:
   take_profit: true
   
   # Exit before resolution (seconds remaining)
-  resolution_exit_threshold: 60  # Exit if < 1 min left (15-min markets)
+  resolution_exit_threshold: 30  # Exit if < 30 sec left (15-min markets)
   
   # Time stop (seconds held without progress)
   time_stop_threshold: 840  # Exit if held > 14 min with no progress
@@ -196,12 +196,13 @@ analysis:
   min_trades_significance: 50
 
 # ==============================================
-# LLM EVOLUTION (Optional)
+# AI STRATEGY OPTIMIZER (Gemini Flash 3)
 # ==============================================
 evolution:
-  enabled: false  # Set to true when you add OpenRouter key
-  interval: 21600  # Every 6 hours
-  model: anthropic/claude-3-sonnet
+  enabled: true  # Will auto-disable if OPENROUTER_API_KEY not set
+  interval: 3600  # Every hour (in seconds)
+  model: google/gemini-flash-1.5  # Gemini Flash 3 via OpenRouter
+  auto_apply: false  # Start conservative - just insights, no auto-changes
   
 # ==============================================
 # ALERTS (Optional)
