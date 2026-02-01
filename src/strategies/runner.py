@@ -15,6 +15,7 @@ from ..core.models import (
     Side, TradeStatus, ExitReason, StrategyStatus
 )
 from ..collection.price_collector import PriceCollector
+from ..collection.live_trader import LiveTrader, create_live_trader
 from .base import BaseStrategy, ExitSignal
 from .volatility import create_strategy
 
@@ -32,6 +33,15 @@ class StrategyRunner:
         self.db = db
         self.price_collector = price_collector
         self.config = get_config()
+        
+        # Live trader for real order execution
+        self.live_trader: Optional[LiveTrader] = None
+        if self.config.mode == "live":
+            self.live_trader = create_live_trader(self.config)
+            if self.live_trader:
+                logger.info("strategy_runner.live_mode_enabled")
+            else:
+                logger.warning("strategy_runner.live_mode_missing_credentials")
         
         # Active strategies
         self.strategies: dict[str, BaseStrategy] = {}
@@ -201,6 +211,43 @@ class StrategyRunner:
 
             shares = bet_size / signal.price if signal.price > 0 else 0
             
+            # === LIVE TRADING EXECUTION ===
+            order_id = None
+            is_paper = True
+            
+            if self.live_trader and self.config.mode == "live":
+                # Get the token ID for this market
+                market = self.price_collector.markets.get(price_update.condition_id)
+                if market:
+                    token_id = market.yes_token_id if signal.side == Side.YES else market.no_token_id
+                    if token_id:
+                        # Execute REAL order
+                        if signal.side == Side.YES:
+                            order_id = await self.live_trader.buy_yes(
+                                token_id=token_id,
+                                price=signal.price,
+                                size=shares
+                            )
+                        else:
+                            order_id = await self.live_trader.buy_no(
+                                token_id=token_id,
+                                price=signal.price,
+                                size=shares
+                            )
+                        
+                        if order_id:
+                            is_paper = False
+                            logger.info("strategy_runner.live_order_placed",
+                                       order_id=order_id,
+                                       strategy=strategy.id,
+                                       side=signal.side.value,
+                                       price=f"{signal.price:.1%}",
+                                       shares=f"{shares:.2f}")
+                        else:
+                            logger.error("strategy_runner.live_order_failed",
+                                        strategy=strategy.id)
+                            return  # Don't record trade if order failed
+            
             # Create trade record
             trade = Trade(
                 strategy_id=strategy.id,
@@ -215,7 +262,7 @@ class StrategyRunner:
                 hour_of_day=datetime.utcnow().hour,
                 day_of_week=datetime.utcnow().weekday(),
                 status=TradeStatus.OPEN,
-                is_paper=True
+                is_paper=is_paper
             )
             
             # Save to database
@@ -232,6 +279,7 @@ class StrategyRunner:
                        side=signal.side.value,
                        price=f"{signal.price:.1%}",
                        shares=f"{shares:.2f}",
+                       live=not is_paper,
                        reason=signal.reason)
     
     async def _check_exits(

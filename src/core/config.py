@@ -80,6 +80,12 @@ class Config(BaseModel):
     # Optional API keys (loaded from environment)
     openrouter_api_key: Optional[str] = None
     discord_webhook_url: Optional[str] = None
+    
+    # Polymarket Trading Credentials
+    poly_private_key: Optional[str] = None  # Wallet private key for signing
+    poly_api_key: Optional[str] = None      # CLOB API Key
+    poly_api_secret: Optional[str] = None   # CLOB API Secret
+    poly_passphrase: Optional[str] = None   # CLOB Passphrase
 
 
 def load_config(config_path: str = "config/settings.yaml") -> Config:
@@ -122,9 +128,19 @@ def load_config(config_path: str = "config/settings.yaml") -> Config:
     config_data["openrouter_api_key"] = os.getenv("OPENROUTER_API_KEY")
     config_data["discord_webhook_url"] = os.getenv("DISCORD_WEBHOOK_URL")
     
+    # Polymarket trading credentials
+    config_data["poly_private_key"] = os.getenv("POLY_PRIVATE_KEY")
+    config_data["poly_api_key"] = os.getenv("POLY_API_KEY")
+    config_data["poly_api_secret"] = os.getenv("POLY_API_SECRET")
+    config_data["poly_passphrase"] = os.getenv("POLY_PASSPHRASE")
+    
     # Override database path from env if set
     if os.getenv("DATABASE_PATH"):
         config_data["database_path"] = os.getenv("DATABASE_PATH")
+    
+    # Override mode from env if set (paper, live, testnet)
+    if os.getenv("MODE"):
+        config_data["mode"] = os.getenv("MODE")
     
     return Config(**config_data)
 
