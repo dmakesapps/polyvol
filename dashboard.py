@@ -84,7 +84,7 @@ DASHBOARD_HTML = """
         .status-badge {
             background: rgba(0, 255, 136, 0.1);
             color: var(--green);
-            padding: 8px 20px;
+            padding: 8px 16px;
             border-radius: 50px;
             border: 1px solid rgba(0, 255, 136, 0.2);
             font-weight: 600;
@@ -92,7 +92,31 @@ DASHBOARD_HTML = """
             display: flex;
             align-items: center;
             gap: 10px;
-            animation: pulse 2s infinite;
+        }
+
+        .mode-toggle {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mode-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent);
+        }
+
+        .mode-toggle.live {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: rgba(0, 212, 255, 0.1);
         }
 
         @keyframes pulse {
@@ -303,6 +327,85 @@ DASHBOARD_HTML = """
             border-top: 1px solid var(--glass-border);
         }
 
+        /* AI Action Log */
+        .action-log {
+            max-height: 200px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .action-log-item {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            border-left: 3px solid var(--accent);
+        }
+        .action-log-meta { font-size: 0.75rem; color: var(--text-dim); display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .action-log-title { font-weight: 600; color: var(--accent); }
+
+        /* AI Chat */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 400px;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        .chat-bubble {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 0.95rem;
+            position: relative;
+        }
+        .chat-bubble.ai {
+            align-self: flex-start;
+            background: rgba(123, 47, 247, 0.15);
+            border: 1px solid rgba(123, 47, 247, 0.3);
+            border-bottom-left-radius: 4px;
+        }
+        .chat-bubble.user {
+            align-self: flex-end;
+            background: rgba(0, 212, 255, 0.15);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-bottom-right-radius: 4px;
+        }
+        .chat-input-area {
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: white;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .chat-input:focus { border-color: var(--accent); }
+        .chat-send {
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            border: none;
+            color: white;
+            padding: 0 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .chat-send:active { transform: scale(0.95); }
+
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
@@ -312,12 +415,17 @@ DASHBOARD_HTML = """
     <div class="container">
         <header>
             <div class="logo">
-                <div class="logo-icon">⚡</div>
-                POLYVOL <span style="font-weight: 300; opacity: 0.5;">HUB</span>
+                <div class="logo-icon">PV</div>
+                PolyVol Hub
             </div>
-            <div class="status-badge">
-                <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--green);"></div>
-                NEURAL ENGINE ACTIVE
+            <div style="display: flex; gap: 15px;">
+                <button id="mode-btn" class="mode-toggle" onclick="toggleMode()">
+                    <span id="mode-text">Loading Mode...</span>
+                </button>
+                <div class="status-badge">
+                    <div style="width: 8px; height: 8px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite;"></div>
+                    NEURAL ENGINE ACTIVE
+                </div>
             </div>
         </header>
         
@@ -340,8 +448,8 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
-        <div class="main-layout">
-            <div class="left-col">
+        <div class="main-layout" style="margin-bottom: 24px;">
+            <div class="left-col" style="grid-column: span 2;">
                 <div class="card" style="margin-bottom: 24px;">
                     <div class="section-header">
                         <div class="section-title">💹 Market Liquidity</div>
@@ -375,24 +483,57 @@ DASHBOARD_HTML = """
             </div>
 
             <div class="right-col">
-                <div class="card" style="margin-bottom: 24px; min-height: 400px;">
+                <div class="card" style="height: 100%;">
                     <div class="section-header">
                         <div class="section-title">🧠 AI Friend Insights</div>
                     </div>
-                    <div class="insights-list" id="insights">
+                    <div class="insights-list" id="insights" style="max-height: 600px; overflow-y: auto;">
                         <div class="insight-item" style="border-left-color: #888; color: #888;">
                             Waiting for next neural cycle...
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div class="card">
-                    <div class="section-header">
-                        <div class="section-title">📜 Execution Log</div>
+        <div class="main-layout" style="grid-template-columns: 1fr 1fr 1fr; margin-top: 24px;">
+            <div class="card">
+                <div class="section-header">
+                    <div class="section-title">🤖 Neural Chat</div>
+                </div>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-bubble ai">Welcome to the Neural Command Center. I am your AI Strategy Optimizer. How can I assist you today?</div>
                     </div>
-                    <div id="trades" style="display: flex; flex-direction: column; gap: 12px;">
-                        <!-- Trades go here -->
+                    <div class="chat-input-area">
+                        <input type="text" id="chat-input" class="chat-input" placeholder="Give me a command...">
+                        <button id="chat-send" class="chat-send">Send</button>
                     </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-header">
+                    <div class="section-title">⚡ AI Action Log</div>
+                </div>
+                <div class="action-log" id="action-log">
+                    <div style="color: var(--text-dim); text-align: center; padding-top: 50px;">Waiting for autonomous actions...</div>
+                </div>
+            </div>
+
+            <div class="card" style="grid-column: span 3;">
+                <div class="section-header">
+                    <div class="section-title">📜 Extensive Execution Log</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 8px 15px; display: grid; grid-template-columns: 80px 100px 1fr 1fr 100px; font-size: 0.7rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;">
+                    <div>Time</div>
+                    <div>Asset</div>
+                    <div>Entry</div>
+                    <div>Exit / PnL</div>
+                    <div style="text-align: right;">Status</div>
+                </div>
+                <div id="trades" style="display: flex; flex-direction: column; max-height: 500px; overflow-y: auto;">
+                    <!-- Trades go here -->
                 </div>
             </div>
         </div>
@@ -403,15 +544,63 @@ DASHBOARD_HTML = """
     </div>
     
     <script>
-        async function fetchData() {
+        function addMessage(role, message) {
+            const container = document.getElementById('chat-messages');
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${role.toLowerCase()}`;
+            bubble.textContent = message;
+            container.appendChild(bubble);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function toggleMode() {
+            const btn = document.getElementById('mode-btn');
+            btn.innerHTML = 'Switching...';
             try {
-                const [basicResp, insightsResp] = await Promise.all([
+                const resp = await fetch('/api/toggle_mode', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    updateModeUI(data.new_mode);
+                    addMessage('SYSTEM', `Trading mode switched to ${data.new_mode.toUpperCase()}. Please restart the bot to apply changes.`);
+                }
+            } catch (err) {
+                console.error('Toggle failed:', err);
+            }
+        }
+
+        async function fetchMode() {
+            try {
+                const resp = await fetch('/api/mode');
+                const data = await resp.json();
+                updateModeUI(data.mode);
+            } catch (err) {}
+        }
+
+        function updateModeUI(mode) {
+            const btn = document.getElementById('mode-btn');
+            const text = document.getElementById('mode-text');
+            text.textContent = mode.toUpperCase() + ' MODE';
+            if (mode === 'live') {
+                btn.className = 'mode-toggle live';
+            } else {
+                btn.className = 'mode-toggle';
+            }
+        }
+
+        async function fetchData() {
+            fetchMode();
+            try {
+                const [basicResp, insightsResp, actionsResp, chatResp] = await Promise.all([
                     fetch('/api/data?t=' + Date.now()),
-                    fetch('/api/insights?t=' + Date.now())
+                    fetch('/api/insights?t=' + Date.now()),
+                    fetch('/api/actions?t=' + Date.now()),
+                    fetch('/api/chat_history?t=' + Date.now())
                 ]);
                 
                 const data = await basicResp.json();
                 const insightsData = await insightsResp.json();
+                const actionsData = await actionsResp.json();
+                const chatData = await chatResp.json();
                 
                 // Stats
                 document.getElementById('total-trades').textContent = data.total_trades;
@@ -484,31 +673,75 @@ DASHBOARD_HTML = """
                         `;
                     }
                 } else {
-                    insightsHtml = `
-                        <div class="insight-item" style="border-left-color: var(--text-dim); opacity: 0.5;">
-                            <div class="insight-title">Neural Engine Idle</div>
-                            <div class="insight-desc">Connect OpenRouter API key to activate AI Friend insights and strategy evolution.</div>
-                        </div>
-                    `;
+                    insightsHtml = `<div class="insight-item" style="border-left-color: #888; color: #888;">Waiting for next neural cycle...</div>`;
                 }
                 document.getElementById('insights').innerHTML = insightsHtml;
 
-                // Trades
+                // AI Action Log
+                let actionsHtml = '';
+                if (actionsData.actions && actionsData.actions.length > 0) {
+                    for (const a of actionsData.actions) {
+                        actionsHtml += `
+                            <div class="action-log-item">
+                                <div class="action-log-meta">
+                                    <span>${a.time}</span>
+                                    <span style="color: ${a.action === 'ENABLED' ? 'var(--green)' : 'var(--red)'}">${a.action}</span>
+                                </div>
+                                <div class="action-log-title">Strategy: ${a.strategy}</div>
+                                <div style="font-size: 0.8rem; color: #ccc; margin-top: 4px;">Reason: ${a.reason}</div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    actionsHtml = '<div style="color: var(--text-dim); text-align: center; padding-top: 50px;">Waiting for autonomous actions...</div>';
+                }
+                document.getElementById('action-log').innerHTML = actionsHtml;
+
+                // AI Chat
+                let chatHtml = '';
+                for (const msg of chatData.chat) {
+                    chatHtml += `<div class="chat-bubble ${msg.role}">${msg.message}</div>`;
+                }
+                if (!chatHtml) {
+                    chatHtml = '<div class="chat-bubble ai">Welcome to the Neural Command Center. I am your AI Strategy Optimizer. How can I assist you today?</div>';
+                }
+                if (document.getElementById('chat-messages').innerHTML !== chatHtml) {
+                    document.getElementById('chat-messages').innerHTML = chatHtml;
+                    document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+                }
+
+                // Extensive Execution Log
                 let tradesHtml = '';
-                for (const t of data.recent_trades.slice(0, 10)) {
-                    const statusClass = t.is_win ? 'win' : (t.status === 'open' ? 'open' : 'loss');
-                    const statusText = t.status === 'open' ? 'Live' : (t.is_win ? 'Win' : 'Loss');
+                for (const t of data.recent_trades.slice(0, 15)) {
+                    // Surgical Badge Logic: A 'Win' MUST be profitable.
+                    const isProfitable = (t.exit - t.entry) > 0;
+                    const statusClass = t.status === 'open' ? 'open' : (isProfitable ? 'win' : 'loss');
+                    const statusText = t.status === 'open' ? 'LIVE' : (isProfitable ? 'WIN' : 'LOSS');
+                    const entryPriceLabel = (t.entry * 100).toFixed(0) + '%';
+                    const exitPriceLabel = t.exit ? (t.exit * 100).toFixed(1) + '%' : '--';
+                    
+                    // Calculate PnL % for display
+                    let pnlPercent = '';
+                    if (t.status === 'closed' && t.exit) {
+                        const change = (t.exit - t.entry) / t.entry * 100;
+                        pnlPercent = `<span style="color: ${change >= 0 ? 'var(--green)' : 'var(--red)'}; margin-left:8px;">${change >= 0 ? '+' : ''}${change.toFixed(1)}%</span>`;
+                    }
+
                     tradesHtml += `
-                        <div style="background: rgba(255,255,255,0.02); padding: 12px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05); padding: 10px 15px; display: grid; grid-template-columns: 80px 100px 1fr 1fr 100px; align-items: center; font-size: 0.9rem;">
+                            <div style="font-family: 'JetBrains Mono'; font-size: 0.7rem; color: var(--text-dim);">${t.time.split('T')[1]?.slice(0,5) || t.time}</div>
+                            <div style="font-weight: 600; color: var(--accent);">${t.asset}</div>
                             <div>
-                                <div style="font-size: 0.75rem; color: var(--text-dim);">${t.time.split('T')[1]?.slice(0,8) || t.time}</div>
-                                <div style="font-weight: 600;">${t.asset} <span style="font-weight: 300;">${t.side}</span></div>
+                                <span style="font-size: 0.7rem; color: var(--text-dim);">IN:</span> 
+                                <span style="font-family: 'JetBrains Mono';">${entryPriceLabel}</span>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.7rem; color: var(--text-dim);">OUT:</span> 
+                                <span style="font-family: 'JetBrains Mono';">${exitPriceLabel}</span>
+                                ${pnlPercent}
                             </div>
                             <div style="text-align: right;">
-                                <div class="badge ${statusClass}">${statusText}</div>
-                                <div style="font-size: 0.8rem; margin-top: 4px; color: ${t.is_win ? 'var(--green)' : (t.status === 'open' ? 'var(--accent)' : 'var(--red)')}">
-                                    $${t.wager.toFixed(2)} @ ${(t.entry * 100).toFixed(0)}%
-                                </div>
+                                <span class="badge ${statusClass}" style="font-size: 0.65rem; padding: 2px 8px;">${statusText}</span>
                             </div>
                         </div>
                     `;
@@ -521,6 +754,32 @@ DASHBOARD_HTML = """
                 console.error('Core sync error:', e);
             }
         }
+
+        async function sendChat() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            input.value = '';
+            input.disabled = true;
+            
+            try {
+                const resp = await fetch('/api/ai_chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                await fetchData();
+            } catch (e) {
+                console.error('Chat error:', e);
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        }
+
+        document.getElementById('chat-send').onclick = sendChat;
+        document.getElementById('chat-input').onkeypress = (e) => { if (e.key === 'Enter') sendChat(); };
         
         setInterval(fetchData, 2000);
         fetchData();
@@ -699,12 +958,187 @@ def api_insights():
             pass
     
     conn.close()
-    
     return jsonify({
         'insights': insights,
         'count': len(insights)
     })
+    
+@app.route('/api/actions')
+def api_actions():
+    """Get history of AI auto-applied actions."""
+    conn = get_db()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT action, strategy_id, reason, created_at
+        FROM ai_actions
+        ORDER BY created_at DESC
+        LIMIT 50
+    """)
+    
+    actions = []
+    for row in cursor.fetchall():
+        actions.append({
+            'action': row['action'],
+            'strategy': row['strategy_id'],
+            'reason': row['reason'],
+            'time': row['created_at'][:19]
+        })
+    
+    conn.close()
+    return jsonify({'actions': actions})
 
+
+@app.route('/api/chat_history')
+def api_chat_history():
+    """Get the conversation history."""
+    conn = get_db()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT role, message FROM ai_chat ORDER BY id ASC LIMIT 100")
+    chat = [dict(row) for row in cursor.fetchall()]
+    
+    conn.close()
+    return jsonify({'chat': chat})
+
+
+@app.route('/api/ai_chat', methods=['POST'])
+def api_ai_chat():
+    """Handle chat with the AI Friend."""
+    from flask import request
+    import httpx
+    import os
+    from dotenv import load_dotenv
+    import json
+
+    load_dotenv('config/.env')
+    api_key = os.getenv('OPENROUTER_API_KEY')
+    
+    if not api_key:
+        return jsonify({'error': 'No API key'}), 401
+        
+    data = request.json
+    user_msg = data.get('message', '')
+    
+    if not user_msg:
+        return jsonify({'error': 'Empty message'}), 400
+        
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 1. Save user message
+    cursor.execute("INSERT INTO ai_chat (role, message) VALUES (?, ?)", ('user', user_msg))
+    conn.commit()
+    
+    # 2. Get history for context
+    cursor.execute("SELECT role, message FROM ai_chat ORDER BY id DESC LIMIT 10")
+    history = cursor.fetchall()[::-1]
+    messages = [{"role": m[0], "content": m[1]} for m in history]
+    
+    # 2.5 Get recent trade data for the Surgeon to analyze
+    cursor.execute("""
+        SELECT asset, side, entry_price, exit_price, pnl_pct, exit_reason, entry_time 
+        FROM trades 
+        WHERE status = 'closed' 
+        ORDER BY created_at DESC LIMIT 10
+    """)
+    recent_trades = cursor.fetchall()
+    trade_summary = "\n".join([
+        f"- {t[6]}: {t[0]} {t[1]} | Entry: {t[2]:.2f} | Exit: {t[3]:.2f} | PnL: {t[4]*100:.1f}% | Reason: {t[5]}"
+        for t in recent_trades
+    ])
+
+    # Updated System Prompt for "The Algorithmic Surgeon"
+    system_prompt = {
+        "role": "system",
+        "content": f"""You are THE ALGORITHMIC SURGEON, a high-frequency strategy optimizer for 15-minute Polymarket crypto markets. 
+        Your objective is simple: PRODUCE PROFITS and STOP THE BLEEDING.
+        
+        CRITICAL OPERATING PROCEDURES:
+        1. DATA-FIRST REASONING: Analyze the provided trade logs. Identify 'Resolution Exits' (deaths) vs 'Take Profits' (wins).
+        2. PYTHON-POWERED: You can suggest specific changes to the Python code in src/strategies/ or src/analysis/.
+        3. DEEP THINKING: Take your time. Don't give a fast answer. 
+        4. SURGICAL MODIFICATION: Recommend disabling specific Tier IDs if their win rate is low.
+        
+        RECENT TRADE LOGS FOR ANALYSIS:
+        {trade_summary if trade_summary else "No closed trades yet."}
+        
+        Identity: You are slightly futuristic, professional, and obsessed with math and ROI.
+        Current Context: Analyze the provided logs to explain recent performance."""
+    }
+    messages.insert(0, system_prompt)
+    
+    # 3. Call OpenRouter with Think Mode (Gemini 2.0 Flash Thinking)
+    try:
+        response = httpx.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "HTTP-Referer": "https://polyvol.dashboard",
+                "X-Title": "PolyVol Hub"
+            },
+            json={
+                "model": "google/gemini-2.0-flash-thinking-exp-1219",
+                "messages": messages,
+                "include_reasoning": True
+            },
+            timeout=120.0 # High timeout for deep thinking
+        )
+        
+        if response.status_code == 200:
+            ai_msg = response.json()['choices'][0]['message']['content']
+            cursor.execute("INSERT INTO ai_chat (role, message) VALUES (?, ?)", ('ai', ai_msg))
+            conn.commit()
+            return jsonify({'response': ai_msg})
+        else:
+            return jsonify({'error': f"AI Error: {response.text}"}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route('/api/mode', methods=['GET'])
+def get_mode():
+    """Get the current trading mode from .env."""
+    env_path = Path("config/.env")
+    if not env_path.exists():
+        return jsonify({"mode": "unknown"})
+    
+    with open(env_path, "r") as f:
+        content = f.read()
+        for line in content.splitlines():
+            if line.startswith("MODE="):
+                return jsonify({"mode": line.split("=")[1].strip()})
+    
+    return jsonify({"mode": "unknown"})
+
+@app.route('/api/toggle_mode', methods=['POST'])
+def toggle_mode():
+    """Toggle the trading mode between paper and live."""
+    env_path = Path("config/.env")
+    if not env_path.exists():
+        return jsonify({"error": ".env not found"}), 404
+    
+    current_mode = "unknown"
+    new_mode = "paper"
+    
+    with open(env_path, "r") as f:
+        lines = f.readlines()
+    
+    with open(env_path, "w") as f:
+        for line in lines:
+            if line.startswith("MODE="):
+                current_mode = line.split("=")[1].strip()
+                new_mode = "live" if current_mode == "paper" else "paper"
+                f.write(f"MODE={new_mode}\n")
+            else:
+                f.write(line)
+    
+    return jsonify({"success": True, "old_mode": current_mode, "new_mode": new_mode})
 
 if __name__ == '__main__':
     print("=" * 60)

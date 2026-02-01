@@ -60,6 +60,13 @@ class ExitConfig(BaseModel):
     time_stop_threshold: int = 600
 
 
+class EvolutionConfig(BaseModel):
+    """AI Evolution settings."""
+    enabled: bool = True
+    interval: int = 3600
+    model: str = "google/gemini-3-flash-preview"
+    auto_apply: bool = False
+
 class AnalysisConfig(BaseModel):
     """Analysis settings."""
     interval: int = 3600
@@ -76,6 +83,7 @@ class Config(BaseModel):
     bankroll: BankrollConfig = BankrollConfig()
     exits: ExitConfig = ExitConfig()
     analysis: AnalysisConfig = AnalysisConfig()
+    evolution: EvolutionConfig = EvolutionConfig()
     
     # Optional API keys (loaded from environment)
     openrouter_api_key: Optional[str] = None

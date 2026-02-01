@@ -200,9 +200,9 @@ analysis:
 # ==============================================
 evolution:
   enabled: true  # Will auto-disable if OPENROUTER_API_KEY not set
-  interval: 3600  # Every hour (in seconds)
+  interval: 900  # Every 15 minutes (900 seconds) - User Request
   model: google/gemini-flash-1.5  # Gemini Flash 3 via OpenRouter
-  auto_apply: false  # Start conservative - just insights, no auto-changes
+  auto_apply: true  # FULL AUTO-EVOLUTION ENABLED - AI will now manage strategies
   
 # ==============================================
 # ALERTS (Optional)

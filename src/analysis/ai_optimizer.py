@@ -479,40 +479,57 @@ Return your analysis as a JSON array of insight objects."""
                 category = insight.get('category', '')
                 title = insight.get('title', '').lower()
                 
-                # 1. Strategy Management (Disable poor performers)
-                if category == 'strategy' and ('disable' in action.lower() or 'stop' in action.lower()):
-                    # Extract strategy ID from action or title
+                # 1. Strategy Management (Disable/Pause poor performers)
+                if category == 'strategy' and any(kw in action.lower() for kw in ['disable', 'stop', 'pause', 'suspend']):
                     import re
-                    match = re.search(r'strategy ([a-z0-9_]+)', f"{action} {title}")
-                    if match:
-                        strategy_id = match.group(1)
+                    # Find all strategy IDs (e.g., ultra_05_15, mid_35_50)
+                    # Looking for patterns that look like our strategy IDs
+                    found_ids = re.findall(r'[a-z]+_\d+_\d+', f"{action} {title}")
+                    
+                    for strategy_id in found_ids:
                         logger.info("ai_optimizer.disabling_strategy", 
                                   strategy=strategy_id, 
-                                  reason=insight.get('description'))
+                                  action=action)
                         
                         await self.db._conn.execute(
                             "UPDATE strategies SET status = 'disabled' WHERE id = ?",
                             (strategy_id,)
                         )
+                        
+                        # Record action in DB for the dashboard log
+                        await self.db._conn.execute(
+                            "INSERT INTO ai_actions (action, strategy_id, reason) VALUES (?, ?, ?)",
+                            ("DISABLED", strategy_id, action)
+                        )
+                    
+                    if found_ids:
                         await self.db._conn.commit()
                         
-                # 2. Strategy Management (Enable good performers if they were disabled)
-                elif category == 'strategy' and ('enable' in action.lower() or 'promote' in action.lower()):
+                # 2. Strategy Management (Enable/Promote good performers)
+                elif category == 'strategy' and any(kw in action.lower() for kw in ['enable', 'promote', 'activate']):
                     import re
-                    match = re.search(r'strategy ([a-z0-9_]+)', f"{action} {title}")
-                    if match:
-                        strategy_id = match.group(1)
+                    found_ids = re.findall(r'[a-z]+_\d+_\d+', f"{action} {title}")
+                    
+                    for strategy_id in found_ids:
                         logger.info("ai_optimizer.enabling_strategy", 
                                   strategy=strategy_id, 
-                                  reason=insight.get('description'))
+                                  action=action)
                         
                         await self.db._conn.execute(
                             "UPDATE strategies SET status = 'enabled' WHERE id = ?",
                             (strategy_id,)
                         )
+                        
+                        # Record action in DB for the dashboard log
+                        await self.db._conn.execute(
+                            "INSERT INTO ai_actions (action, strategy_id, reason) VALUES (?, ?, ?)",
+                            ("ENABLED", strategy_id, action)
+                        )
+                    
+                    if found_ids:
                         await self.db._conn.commit()
 
-                # 3. Timing/Risk Adjustments (Placeholder for future implementation)
+                # 3. Timing/Risk Adjustments (Placeholder)
                 elif category == 'timing' and 'avoid hour' in action.lower():
                     logger.info("ai_optimizer.would_apply_timing", 
                                action=action,

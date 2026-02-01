@@ -77,28 +77,34 @@ async function main() {
             if (resp && resp.orderID) {
                 console.log(JSON.stringify({ success: true, orderId: resp.orderID, price: price, size: size }));
             } else {
-                console.log(JSON.stringify({ success: true, resp: resp }));
+                console.log(JSON.stringify({ success: false, error: "Placement failed", resp: resp }));
             }
         } catch (err) {
             // Check for fee rate error
             const msg = err.message || "";
-            const match = msg.match(/fee rate for the market must be (\d+)/);
-            if (match) {
-                const requiredFee = parseInt(match[1]);
-                // console.log(`Retrying with fee rate: ${requiredFee}`);
-                const resp = await placeOrder(requiredFee);
-                if (resp && resp.orderID) {
-                    console.log(JSON.stringify({ success: true, orderId: resp.orderID, price: price, size: size, retried: true }));
-                } else {
-                    console.log(JSON.stringify({ success: true, resp: resp }));
+            if (msg.includes("fee rate")) {
+                const match = msg.match(/fee rate for the market must be (\d+)/);
+                if (match) {
+                    const requiredFee = parseInt(match[1]);
+                    const resp = await placeOrder(requiredFee);
+                    if (resp && resp.orderID) {
+                        console.log(JSON.stringify({ success: true, orderId: resp.orderID, price: price, size: size, retried: true }));
+                    } else {
+                        console.log(JSON.stringify({ success: false, error: "Placement failed after retry", resp: resp }));
+                    }
+                    return;
                 }
-            } else {
-                throw err;
             }
+            throw err;
         }
 
     } catch (error) {
-        console.log(JSON.stringify({ success: false, error: error.message }));
+        console.log(JSON.stringify({
+            success: false,
+            error: error.message,
+            stack: error.stack,
+            fullError: error
+        }));
         process.exit(1);
     }
 }

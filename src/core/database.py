@@ -345,6 +345,12 @@ class Database:
             return self._row_to_strategy(row)
         return None
     
+    async def get_strategies(self) -> List[Strategy]:
+        """Get all strategies in the database."""
+        cursor = await self._conn.execute("SELECT * FROM strategies")
+        rows = await cursor.fetchall()
+        return [self._row_to_strategy(row) for row in rows]
+
     async def get_active_strategies(self) -> List[Strategy]:
         """Get all active (non-retired) strategies."""
         cursor = await self._conn.execute(

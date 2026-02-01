@@ -29,6 +29,7 @@ class ExitReason(str, Enum):
     RESOLUTION_WIN = "RESOLUTION_WIN"
     RESOLUTION_LOSS = "RESOLUTION_LOSS"
     MANUAL = "MANUAL"
+    PHANTOM_CLEANUP = "PHANTOM_CLEANUP"
 
 
 class StrategyStatus(str, Enum):
@@ -163,8 +164,9 @@ class Trade(BaseModel):
         
         self.pnl = self.shares * self.entry_price * self.pnl_pct
         
-        # Determine if win (hit target or resolution win)
-        self.is_win = exit_reason in [ExitReason.TAKE_PROFIT, ExitReason.RESOLUTION_WIN]
+        # Determine if win: Must hit target/resolution AND have positive PnL
+        is_profitable = self.pnl_pct > 0
+        self.is_win = is_profitable and (exit_reason in [ExitReason.TAKE_PROFIT, ExitReason.RESOLUTION_WIN])
 
 
 class Strategy(BaseModel):

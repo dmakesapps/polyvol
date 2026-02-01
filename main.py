@@ -73,8 +73,8 @@ async def main():
     reporter = Reporter(db)
     ai_optimizer = AIStrategyOptimizer(
         db=db,
-        auto_apply=False,  # Start conservative - just insights, no auto-changes
-        run_interval_hours=1.0
+        auto_apply=config.evolution.auto_apply,
+        run_interval_hours=config.evolution.interval / 3600.0
     )
     
     # Handle shutdown signals

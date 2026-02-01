@@ -343,38 +343,35 @@ class LiveTrader:
         import os
         import json
         
-        # Sizing Logic:
-        # For BUY: Force ~$1.10 USD position size (User Request)
-        # For SELL: Use the requested size (to exit full position)
-        if side == "BUY":
-            # Override size to be roughly $1 USD worth
-            # Use $1.10 to avoid "min size $1" errors due to floating point rounding
-            TARGET_INVESTMENT = 1.1
-            
-            if price <= 0.001:
-                 price = 0.001
-            
-            calculated_size = TARGET_INVESTMENT / price
-        else:
-            # For SELL, respect the logic's decision (usually selling strict number of shares held)
-            calculated_size = size
-        
-        # Resolve path to trade.js
+        # 1. Resolve path to trade.js
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        # Up to src, Up to polyvol root (src/collection -> src -> root)
         root_dir = os.path.abspath(os.path.join(current_dir, "../../"))
         script_path = os.path.join(root_dir, "poly-creds", "trade.js")
         
-        # MARKET ORDER LOGIC (Pseudo-Market Order):
-        # We pass aggressive prices to the CLOB to ensure immediate fill.
-        # Max Price for BUY = 0.99 (API limit)
-        # Min Price for SELL = 0.001 (API limit is usually 0.0001 or similar, but 0.01 safe)
+        # 2. Sizing & Aggressive Price Logic
+        # We want to spend TARGET_INVESTMENT (~$1.10 USD)
+        TARGET_INVESTMENT = 1.1
+        
         if side == "BUY":
-            # Polymarket API max price is usually slightly less than 1
-            # Using 0.99 is safe for maximizing fill chance
-            aggressive_price = "0.99"
+            # Polymarket API limit is 0.99. 
+            # We use a price slightly above the market to ensure fill, but NOT so high that 
+            # the locked balance (limit_price * size) exceeds our actual wallet balance.
+            market_price = float(price)
+            # Safe aggressive price: signal price + 5 cents, capped at 0.99
+            safe_aggressive_price = min(0.99, market_price + 0.05)
+            
+            # Calculate shares based on the actual price we want to pay (the signal price)
+            # BUT the total commitment in the CLOB will be shares * safe_aggressive_price
+            calculated_size = TARGET_INVESTMENT / market_price
+            
+            # Final Check: If total commitment > wallet balance ($4), we might still fail.
+            # But $1.10 @ 0.25 (market) is ~4 shares. 4 shares @ 0.30 (aggressive) = $1.20. 
+            # This is safe for a $4 wallet.
+            
+            aggressive_price = str(round(safe_aggressive_price, 2))
         else:
-            # Polymarket API min price. 0 might be invalid, using a very low number.
+            # For SELL, dump the whole position
+            calculated_size = size
             aggressive_price = "0.01"
 
         cmd = [

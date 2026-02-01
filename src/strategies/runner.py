@@ -103,12 +103,14 @@ class StrategyRunner:
         logger.info("strategy_runner.stopped")
     
     async def _load_strategies(self) -> None:
-        """Load and initialize strategies from config."""
+        """Load and initialize strategies from config, syncing with database."""
         self.enabled_strategy_ids = set()
         
+        # Get existing strategy statuses from DB
+        db_strategies = await self.db.get_strategies()
+        status_map = {s.id: s.status for s in db_strategies}
+        
         for strat_config in self.config.strategies:
-            # Create strategy instance for ALL strategies (even disabled ones)
-            # This ensures we manage exits for legacy positions
             strategy = create_strategy({
                 "id": strat_config.id,
                 "entry": strat_config.entry,
@@ -119,10 +121,13 @@ class StrategyRunner:
             
             self.strategies[strategy.id] = strategy
             
-            if strat_config.enabled:
-                self.enabled_strategy_ids.add(strategy.id)
+            # Determine initial status
+            # If exists in DB, keep current status. If not, use config.
+            current_status = status_map.get(strategy.id)
+            if current_status is None:
+                current_status = StrategyStatus.ACTIVE if strat_config.enabled else StrategyStatus.TESTING
             
-            # Save strategy to database
+            # Save strategy to database (upsert)
             db_strategy = StrategyModel(
                 id=strategy.id,
                 name=strategy.name,
@@ -130,14 +135,18 @@ class StrategyRunner:
                 entry_threshold=strategy.entry_threshold,
                 exit_threshold=strategy.exit_threshold,
                 direction=strategy.direction,
-                status=StrategyStatus.TESTING
+                status=current_status
             )
             await self.db.save_strategy(db_strategy)
             
-            status_msg = "ENABLED" if strat_config.enabled else "MONITOR_ONLY"
+            # Use ACTIVE status from DB for execution logic
+            # Any status other than 'active' is treated as MONITOR_ONLY
+            if current_status == StrategyStatus.ACTIVE:
+                self.enabled_strategy_ids.add(strategy.id)
+            
             logger.info("strategy_runner.strategy_loaded",
                        id=strategy.id,
-                       status=status_msg,
+                       status=current_status.value,
                        entry=strategy.entry_threshold,
                        exit=strategy.exit_threshold,
                        break_even_wr=f"{strategy.break_even_win_rate:.1%}")
