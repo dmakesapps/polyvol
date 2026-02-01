@@ -1,0 +1,10 @@
+{
+  "name": "poly-creds",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@polymarket/clob-client": "latest",
+    "dotenv": "^17.2.3",
+    "ethers": "^5.8.0"
+  }
+}

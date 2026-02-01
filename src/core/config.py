@@ -86,6 +86,7 @@ class Config(BaseModel):
     poly_api_key: Optional[str] = None      # CLOB API Key
     poly_api_secret: Optional[str] = None   # CLOB API Secret
     poly_passphrase: Optional[str] = None   # CLOB Passphrase
+    poly_funder_address: Optional[str] = None  # Polymarket proxy wallet address
 
 
 def load_config(config_path: str = "config/settings.yaml") -> Config:
@@ -133,6 +134,7 @@ def load_config(config_path: str = "config/settings.yaml") -> Config:
     config_data["poly_api_key"] = os.getenv("POLY_API_KEY")
     config_data["poly_api_secret"] = os.getenv("POLY_API_SECRET")
     config_data["poly_passphrase"] = os.getenv("POLY_PASSPHRASE")
+    config_data["poly_funder_address"] = os.getenv("POLY_FUNDER_ADDRESS")
     
     # Override database path from env if set
     if os.getenv("DATABASE_PATH"):

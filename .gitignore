@@ -5,3 +5,7 @@ __pycache__/
 data/evolution.db
 *.log
 .env
+**/node_modules
+
+# Secrets
+config/.env
