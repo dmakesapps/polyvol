@@ -206,6 +206,7 @@ DASHBOARD_HTML = """
                         <th>Strategy</th>
                         <th>Asset</th>
                         <th>Side</th>
+                        <th>Wager</th>
                         <th>Entry</th>
                         <th>Exit</th>
                         <th>Result</th>
@@ -283,6 +284,7 @@ DASHBOARD_HTML = """
                             <td>${t.strategy}</td>
                             <td>${t.asset}</td>
                             <td>${t.side}</td>
+                            <td>$${t.wager.toFixed(2)}</td>
                             <td>${(t.entry * 100).toFixed(1)}%</td>
                             <td>${t.exit ? (t.exit * 100).toFixed(1) + '%' : '--'}</td>
                             <td><span class="badge ${resultClass}">${resultText}</span></td>
@@ -413,6 +415,7 @@ def api_data():
             strategy_id as strategy,
             asset,
             side,
+            shares,
             entry_price as entry,
             exit_price as exit,
             is_win,
@@ -428,6 +431,7 @@ def api_data():
             'strategy': row['strategy'],
             'asset': row['asset'],
             'side': row['side'],
+            'wager': row['shares'] * row['entry'],
             'entry': row['entry'],
             'exit': row['exit'],
             'is_win': row['is_win'],
