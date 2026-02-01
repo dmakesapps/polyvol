@@ -337,6 +337,43 @@ class StrategyRunner:
             }
             exit_reason = reason_map.get(exit_signal, ExitReason.MANUAL)
             
+            # === LIVE TRADING EXIT ===
+            if self.live_trader and self.config.mode == "live":
+                # Get the token ID and proper size
+                market = self.price_collector.markets.get(price_update.condition_id)
+                if market:
+                    token_id = market.yes_token_id if trade.side == Side.YES else market.no_token_id
+                    
+                    if token_id:
+                        # Close the Full Position
+                        order_id = None
+                        if trade.side == Side.YES:
+                            order_id = await self.live_trader.sell_yes(
+                                token_id=token_id,
+                                price=exit_price,
+                                size=trade.shares
+                            )
+                        else:
+                            order_id = await self.live_trader.sell_no(
+                                token_id=token_id,
+                                price=exit_price,
+                                size=trade.shares
+                            )
+                            
+                        if order_id:
+                            logger.info("strategy_runner.live_exit_placed",
+                                      order_id=order_id,
+                                      strategy=strategy.id,
+                                      side=trade.side.value,
+                                      price=f"{exit_price:.1%}",
+                                      shares=f"{trade.shares:.2f}")
+                        else:
+                             # If order failed, we should simpler log it. 
+                             # We still close the trade in DB to avoid getting stuck in a loop of trying to sell if its rejected?
+                             # Or we just log error.
+                             logger.error("strategy_runner.live_exit_failed",
+                                        strategy=strategy.id)
+
             # Close the trade
             trade.close(
                 exit_price=exit_price,

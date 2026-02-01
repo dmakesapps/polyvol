@@ -1,0 +1,9 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install py-clob-client
+
+COPY derive_creds.py .
+
+CMD ["python", "derive_creds.py"]

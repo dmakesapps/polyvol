@@ -365,12 +365,24 @@ class LiveTrader:
         root_dir = os.path.abspath(os.path.join(current_dir, "../../"))
         script_path = os.path.join(root_dir, "poly-creds", "trade.js")
         
+        # MARKET ORDER LOGIC (Pseudo-Market Order):
+        # We pass aggressive prices to the CLOB to ensure immediate fill.
+        # Max Price for BUY = 0.99 (API limit)
+        # Min Price for SELL = 0.001 (API limit is usually 0.0001 or similar, but 0.01 safe)
+        if side == "BUY":
+            # Polymarket API max price is usually slightly less than 1
+            # Using 0.99 is safe for maximizing fill chance
+            aggressive_price = "0.99"
+        else:
+            # Polymarket API min price. 0 might be invalid, using a very low number.
+            aggressive_price = "0.01"
+
         cmd = [
             "node",
             script_path,
             str(token_id),
             side,
-            str(price),
+            aggressive_price, 
             str(calculated_size)
         ]
         

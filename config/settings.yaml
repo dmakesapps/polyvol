@@ -4,7 +4,7 @@
 # SYSTEM
 # ==============================================
 system:
-  mode: paper  # paper or live
+  mode: live  # paper or live
   log_level: INFO
   database_path: data/evolution.db
   
@@ -13,7 +13,7 @@ system:
 # ==============================================
 collection:
   # How often to poll prices (seconds)
-  poll_interval: 1  # Near-instant updates
+  poll_interval: 3  # Near-instant updates
   
   # Assets to track
   assets:
