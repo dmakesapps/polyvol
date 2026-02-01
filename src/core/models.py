@@ -52,6 +52,11 @@ class PriceUpdate(BaseModel):
     volume: Optional[float] = None
     liquidity: Optional[float] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+    # Market depth for realistic simulation
+    yes_bid: Optional[float] = None
+    yes_ask: Optional[float] = None
+    no_bid: Optional[float] = None
+    no_ask: Optional[float] = None
 
 
 class Market(BaseModel):
@@ -69,6 +74,12 @@ class Market(BaseModel):
     # CLOB token IDs for real-time orderbook prices
     yes_token_id: Optional[str] = None
     no_token_id: Optional[str] = None
+    
+    # Real-time Order Book Data
+    yes_bid: Optional[float] = None
+    yes_ask: Optional[float] = None
+    no_bid: Optional[float] = None
+    no_ask: Optional[float] = None
 
 
 class Position(BaseModel):

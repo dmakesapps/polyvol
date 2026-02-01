@@ -167,13 +167,39 @@ class StrategyRunner:
                 # Cooldown expired
                 del self.cooldowns[trade_key]
         
+        # Check if we have EVER traded this market (Max 1 trade rule)
+        if await self.db.has_traded_market(strategy.id, price_update.condition_id):
+            return
+        
         # Check entry signal
         signal = strategy.check_entry(price_update)
         
         if signal.should_enter:
-            # Calculate position size (paper trading uses fixed $10)
-            bet_size = 10.0  # $10 per trade for paper trading
-            shares = bet_size / signal.price
+            # Calculate Kelly Bet Size (Data Gathering)
+            # Use bankroll of $1000 for simulation purposes
+            bankroll = 1000.0 
+            
+            # Calculate optimal bet
+            from ..bankroll.kelly import calculate_bet_for_strategy
+            kelly_bet = calculate_bet_for_strategy(
+                bankroll=bankroll,
+                entry_price=signal.price,
+                exit_price=strategy.exit_threshold,
+                fraction=0.5  # Half-Kelly for safety
+            )
+            
+            # User Override: Fixed $1 size for testing
+            bet_size = 1.0
+            
+            # Log the Kelly recommendation vs Actual
+            logger.info("strategy_runner.sizing",
+                       strategy=strategy.id,
+                       kelly_rec_usd=f"${kelly_bet.amount:.2f}",
+                       kelly_rec_pct=f"{kelly_bet.percentage:.1%}",
+                       actual_usd=f"${bet_size:.2f}",
+                       reason=kelly_bet.reasoning)
+
+            shares = bet_size / signal.price if signal.price > 0 else 0
             
             # Create trade record
             trade = Trade(

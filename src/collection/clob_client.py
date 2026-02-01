@@ -207,14 +207,18 @@ class CLOBClient:
         }
         
         # Get YES order book
+        # Get YES order book
         yes_book = await self.get_order_book(yes_token_id)
         if yes_book:
             bids = yes_book.get("bids", [])
             asks = yes_book.get("asks", [])
             if bids:
-                result["yes_bid"] = float(bids[0].get("price", 0))
+                # Robustly find best bid (highest price) independent of API sorting
+                result["yes_bid"] = max(float(b.get("price", 0)) for b in bids)
             if asks:
-                result["yes_ask"] = float(asks[0].get("price", 0))
+                # Robustly find best ask (lowest price)
+                result["yes_ask"] = min(float(a.get("price", 100)) for a in asks)
+            
             if result["yes_bid"] and result["yes_ask"]:
                 result["yes_mid"] = (result["yes_bid"] + result["yes_ask"]) / 2
         
@@ -224,9 +228,10 @@ class CLOBClient:
             bids = no_book.get("bids", [])
             asks = no_book.get("asks", [])
             if bids:
-                result["no_bid"] = float(bids[0].get("price", 0))
+                result["no_bid"] = max(float(b.get("price", 0)) for b in bids)
             if asks:
-                result["no_ask"] = float(asks[0].get("price", 0))
+                result["no_ask"] = min(float(a.get("price", 100)) for a in asks)
+            
             if result["no_bid"] and result["no_ask"]:
                 result["no_mid"] = (result["no_bid"] + result["no_ask"]) / 2
         

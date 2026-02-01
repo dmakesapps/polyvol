@@ -187,17 +187,40 @@ class PriceCollector:
                 market.yes_price = yes_price
                 market.no_price = no_price
 
-                # OVERRIDE with CLOB Last Trade Price (Real-time accuracy)
-                # The Gamma API often lags by 1-2 mins on fast moves.
-                if market.yes_token_id:
-                    last_yes = await self.clob_client.get_last_price(market.yes_token_id)
-                    if last_yes is not None:
-                        # Only update if significantly different (or just always trust it)
-                        yes_price = last_yes
-                        no_price = 1.0 - last_yes
-                        market.yes_price = yes_price
-                        market.no_price = no_price
+                # OVERRIDE with CLOB Bid/Ask Data (Real-time accuracy)
+                # Fetch order book data to catch the real spread
+                yes_bid = None
+                yes_ask = None
+                no_bid = None
+                no_ask = None
                 
+                if market.yes_token_id and market.no_token_id:
+                    clob_data = await self.clob_client.get_best_bid_ask(
+                        market.yes_token_id, 
+                        market.no_token_id
+                    )
+                    
+                    if clob_data:
+                        yes_bid = clob_data.get("yes_bid")
+                        yes_ask = clob_data.get("yes_ask")
+                        no_bid = clob_data.get("no_bid")
+                        no_ask = clob_data.get("no_ask")
+                        
+                        # Store EXECUTION prices on the market object (Critical for paper trading)
+                        market.yes_bid = yes_bid
+                        market.yes_ask = yes_ask
+                        market.no_bid = no_bid
+                        market.no_ask = no_ask
+                        
+                        # Update "display" prices to Midpoint or Last Trade if available
+                        # But keep the Bid/Ask separate for execution
+                        if clob_data.get("yes_mid"):
+                            yes_price = clob_data["yes_mid"]
+                        if clob_data.get("no_mid"):
+                            no_price = clob_data["no_mid"]
+                        elif no_ask and no_bid:
+                             no_price = (no_ask + no_bid) / 2
+
                 # Create price update
                 price_update = PriceUpdate(
                     market_id=market.id,
@@ -205,6 +228,10 @@ class PriceCollector:
                     asset=market.asset,
                     yes_price=yes_price,
                     no_price=no_price,
+                    yes_bid=yes_bid,
+                    yes_ask=yes_ask,
+                    no_bid=no_bid,
+                    no_ask=no_ask,
                     time_remaining=time_remaining,
                     volume=market.volume,
                     liquidity=market.liquidity,
@@ -268,6 +295,10 @@ class PriceCollector:
             asset=market.asset,
             yes_price=market.yes_price,
             no_price=market.no_price,
+            yes_bid=market.yes_bid,
+            yes_ask=market.yes_ask,
+            no_bid=market.no_bid,
+            no_ask=market.no_ask,
             time_remaining=time_remaining,
             volume=market.volume,
             liquidity=market.liquidity,

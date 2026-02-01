@@ -25,7 +25,7 @@ class Database:
         # Ensure directory exists
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         
-        self._conn = await aiosqlite.connect(self.db_path)
+        self._conn = await aiosqlite.connect(self.db_path, timeout=30.0)
         self._conn.row_factory = aiosqlite.Row
         
         await self._init_tables()
@@ -259,6 +259,14 @@ class Database:
         
         rows = await cursor.fetchall()
         return [self._row_to_trade(row) for row in rows]
+
+    async def has_traded_market(self, strategy_id: str, condition_id: str) -> bool:
+        """Check if a strategy has ever traded a specific market condition."""
+        cursor = await self._conn.execute(
+            "SELECT 1 FROM trades WHERE strategy_id = ? AND condition_id = ? LIMIT 1",
+            (strategy_id, condition_id)
+        )
+        return await cursor.fetchone() is not None
     
     async def get_trades_by_strategy(
         self, 

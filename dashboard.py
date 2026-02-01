@@ -303,7 +303,7 @@ DASHBOARD_HTML = """
         
         // Initial fetch and refresh every 5 seconds
         fetchData();
-        setInterval(fetchData, 1000);  // Update every 1 second
+        setInterval(fetchData, 3000);  // Update every 3 seconds
     </script>
 </body>
 </html>
@@ -349,18 +349,26 @@ def api_data():
     cursor.execute("""
         SELECT asset, yes_price, no_price, timestamp
         FROM prices
-        WHERE id IN (
-            SELECT MAX(id)
-            FROM prices
-            WHERE timestamp > datetime('now', '-5 minute')
-            GROUP BY asset
-        )
-        ORDER BY asset
+        WHERE timestamp > datetime('now', '-5 minute')
+        ORDER BY id DESC
     """)
-    price_rows = cursor.fetchall()
+    raw_rows = cursor.fetchall()
+    
+    prices_map = {}
+    for p in raw_rows:
+        asset = p['asset']
+        is_50 = abs(p['yes_price'] - 0.5) < 0.01
+        
+        if asset not in prices_map:
+            prices_map[asset] = p
+        else:
+            curr_50 = abs(prices_map[asset]['yes_price'] - 0.5) < 0.01
+            if curr_50 and not is_50:
+                prices_map[asset] = p
     
     prices = []
-    for p in price_rows:
+    for asset in sorted(prices_map.keys()):
+        p = prices_map[asset]
         signal = None
         if p['yes_price'] <= 0.20:
             signal = "🎯 BUY YES Signal!"

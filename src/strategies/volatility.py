@@ -79,17 +79,4 @@ DEFAULT_STRATEGIES = [
     {"id": "value_20_25", "entry": 0.20, "exit": 0.25, "tier": 2},
     {"id": "value_20_30", "entry": 0.20, "exit": 0.30, "tier": 2},
     {"id": "value_20_35", "entry": 0.20, "exit": 0.35, "tier": 2},
-    
-    # Tier 3: Mid-Range
-    {"id": "mid_35_50", "entry": 0.35, "exit": 0.50, "tier": 3},
-    {"id": "mid_40_50", "entry": 0.40, "exit": 0.50, "tier": 3},
-    {"id": "mid_40_55", "entry": 0.40, "exit": 0.55, "tier": 3},
-    
-    # Tier 4: High Probability
-    {"id": "high_60_70", "entry": 0.60, "exit": 0.70, "tier": 4},
-    
-    # Tier 5: Fade
-    {"id": "fade_80_70", "entry": 0.80, "exit": 0.70, "tier": 5, "direction": "fade"},
-    {"id": "fade_85_75", "entry": 0.85, "exit": 0.75, "tier": 5, "direction": "fade"},
-    {"id": "fade_90_80", "entry": 0.90, "exit": 0.80, "tier": 5, "direction": "fade"},
 ]

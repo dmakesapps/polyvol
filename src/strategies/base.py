@@ -95,6 +95,11 @@ class BaseStrategy(ABC):
         Returns:
             EntrySignal with entry decision
         """
+        # Don't enter if market is expiring soon (< 3 minutes)
+        # This prevents entering trades that will immediately force a Resolution Exit (often at a loss due to spread)
+        if price_update.time_remaining is not None and price_update.time_remaining < 180:
+            return EntrySignal(should_enter=False, side=Side.YES, price=0, reason="Market expiring soon")
+
         # Don't enter if already in this market
         if price_update.condition_id in self.positions:
             return EntrySignal(should_enter=False, side=Side.YES, price=0)
@@ -105,34 +110,48 @@ class BaseStrategy(ABC):
         if self.direction == "fade":
             # Fade: buy NO when YES is high (e.g., 80%)
             # This means NO is at 20%, which is our effective entry
-            if price_update.yes_price >= self.entry_threshold:
+            # EXECUTION REALISM: We buy NO at the NO_ASK price
+            buy_price = price_update.no_ask if price_update.no_ask else price_update.no_price
+            trigger_price = price_update.yes_bid if price_update.yes_bid else price_update.yes_price
+            
+            # Strict Band Check: Trigger only if within 5% of threshold
+            # e.g. 80% strategy only triggers in 80% - 85% range
+            # Exception: For highest tier (>=90%), extend to 100% to catch extremes
+            width = 0.05
+            if self.entry_threshold >= 0.90:
+                width = 0.10
+                
+            max_trigger = min(1.0, self.entry_threshold + width)
+            
+            if self.entry_threshold <= trigger_price < max_trigger:
                 return EntrySignal(
                     should_enter=True,
                     side=Side.NO,
-                    price=price_update.no_price,
+                    price=buy_price,
                     confidence=self._get_confidence(price_update),
-                    reason=f"Fade entry: YES at {price_update.yes_price:.1%}, buying NO at {price_update.no_price:.1%}"
+                    reason=f"Fade entry: YES at {trigger_price:.1%}, buying NO at {buy_price:.1%}"
                 )
         else:
             # Normal: buy YES when it drops to entry_threshold
-            if price_update.yes_price <= self.entry_threshold:
+            # EXECUTION REALISM: Buy YES at YES_ASK
+            buy_price = price_update.yes_ask if price_update.yes_ask else price_update.yes_price
+            
+            # Strict Band Check: Entry must be within 5% of threshold
+            # e.g. 20% strategy only triggers in 15% - 20% range
+            min_entry = max(0, self.entry_threshold - 0.05)
+            
+            if min_entry < buy_price <= self.entry_threshold:
                 return EntrySignal(
                     should_enter=True,
                     side=Side.YES,
-                    price=price_update.yes_price,
+                    price=buy_price,
                     confidence=self._get_confidence(price_update),
-                    reason=f"Deep value entry: YES at {price_update.yes_price:.1%}"
+                    reason=f"Deep value entry: YES at {buy_price:.1%}"
                 )
             
-            # Also check NO side (symmetric opportunity)
-            if price_update.no_price <= self.entry_threshold:
-                return EntrySignal(
-                    should_enter=True,
-                    side=Side.NO,
-                    price=price_update.no_price,
-                    confidence=self._get_confidence(price_update),
-                    reason=f"Deep value entry: NO at {price_update.no_price:.1%}"
-                )
+            # NO Side check removed for Normal strategies to prevent redundancy with Fade strategies.
+            # Normal strategies (Value/Deep) are now Long-Only (Buy YES).
+            pass
         
         return EntrySignal(should_enter=False, side=Side.YES, price=0)
     
@@ -156,10 +175,11 @@ class BaseStrategy(ABC):
             Tuple of (exit signal, exit price)
         """
         # Get current price for our side
-        current_price = (
-            price_update.yes_price if position.side == Side.YES
-            else price_update.no_price
-        )
+        # EXECUTION REALISM: We sell at the BID price
+        if position.side == Side.YES:
+            current_price = price_update.yes_bid if price_update.yes_bid else price_update.yes_price
+        else:
+            current_price = price_update.no_bid if price_update.no_bid else price_update.no_price
         
         # Calculate target exit price
         if self.direction == "fade":
@@ -178,11 +198,9 @@ class BaseStrategy(ABC):
             if price_update.time_remaining < resolution_threshold:
                 return ExitSignal.RESOLUTION_EXIT, current_price
         
-        # 3. TIME STOP - held too long without progress
-        hold_time = (datetime.utcnow() - position.entry_time).total_seconds()
-        if hold_time > time_stop_threshold:
-            if current_price < position.entry_price:
-                return ExitSignal.TIME_STOP, current_price
+        # 3. TIME STOP - Removed based on user preference
+        # We now hold until Take Profit or Resolution
+        pass
         
         # 4. HOLD - keep position
         return ExitSignal.HOLD, current_price
