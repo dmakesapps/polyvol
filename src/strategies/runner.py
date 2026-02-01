@@ -64,11 +64,17 @@ class StrategyRunner:
         # Load strategies from config
         await self._load_strategies()
         
+        # Connect live trader if enabled
+        if self.live_trader:
+            await self.live_trader.connect()
+            logger.info("strategy_runner.live_trader_connected")
+        
         self._running = True
         self._task = asyncio.create_task(self._run_loop())
         
         logger.info("strategy_runner.started", 
-                   strategies=len(self.strategies))
+                   strategies=len(self.strategies),
+                   live_mode=self.live_trader is not None)
     
     async def stop(self) -> None:
         """Stop the strategy runner."""
@@ -80,6 +86,10 @@ class StrategyRunner:
                 await self._task
             except asyncio.CancelledError:
                 pass
+        
+        # Close live trader connection
+        if self.live_trader:
+            await self.live_trader.close()
         
         logger.info("strategy_runner.stopped")
     
